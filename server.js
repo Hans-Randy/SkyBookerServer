@@ -26,6 +26,34 @@ async function initDB() {
   }
 }
 
+// Select all airports
+app.get('/api/airports', async (req, res) => {
+  let conn;
+  try {
+    conn = await pool.getConnection();
+
+    const result = await conn.execute(`
+      SELECT AirportID, AirportCode, City
+      FROM Airport
+      ORDER BY City
+    `);
+
+    const airports = result.rows.map(([id, code, city]) => ({
+      id,
+      code,
+      city,
+      label: `${city}(${code})`
+    }));
+
+    res.json(airports);
+  } catch (err) {
+    console.error('Query error:', err);
+    res.status(500).json({ error: 'Failed to fetch airports' });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
 // Example route
 app.get('/api/flights', async (req, res) => {
   let conn;
