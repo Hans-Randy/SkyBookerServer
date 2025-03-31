@@ -80,7 +80,7 @@ app.get('/api/search-flights', async (req, res) => {
       plsql = `BEGIN AirlinePackage.SearchFlights(:departureId, :cursor); END;`;
       binds.departureId = parseInt(departureId);
     } else {
-      return res.status(400).json({ error: 'At least departureId is required' });
+      plsql = `BEGIN AirlinePackage.SearchFlights(:cursor); END;`;
     }
 
     binds.cursor = { type: oracledb.CURSOR, dir: oracledb.BIND_OUT };

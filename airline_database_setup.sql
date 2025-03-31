@@ -804,6 +804,7 @@ CREATE OR REPLACE PACKAGE AirlinePackage IS
     PROCEDURE ListFlightsByAirport(p_AirportID IN NUMBER, p_FlightCursor OUT SYS_REFCURSOR);
     
     -- Overloaded SearchFlights procedures that return REF CURSOR
+    PROCEDURE SearchFlights(p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_ArrivalAirportID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_DepartureDateTime IN TIMESTAMP, p_ResultCursor OUT FlightCursorType);
@@ -911,6 +912,30 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             SELECT FlightNumber, DepartureDateTime, ArrivalDateTime, Price
             FROM Flight
             WHERE DepartureAirportID = p_AirportID;
+    END;
+
+    -- Search for all flights
+    PROCEDURE SearchFlights(p_ResultCursor OUT FlightCursorType) IS
+    BEGIN
+        OPEN p_ResultCursor FOR
+            SELECT f.FlightID, 
+                   f.FlightNumber, 
+                   f.DepartureAirportID,
+                   dep.AirportName AS DepartureAirport, 
+                   dep.City AS DepartureCity,
+                   f.ArrivalAirportID,
+                   arr.AirportName AS ArrivalAirport,
+                   arr.City AS ArrivalCity,
+                   f.DepartureDateTime, 
+                   f.ArrivalDateTime, 
+                   f.Price,
+                   f.AircraftID,
+                   ac.AircraftModel
+            FROM Flight f
+            JOIN Airport dep ON f.DepartureAirportID = dep.AirportID
+            JOIN Airport arr ON f.ArrivalAirportID = arr.AirportID
+            JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
+            ORDER BY f.DepartureDateTime;
     END;
 
     -- Search for flights from departure airport only
