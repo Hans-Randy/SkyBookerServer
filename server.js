@@ -90,12 +90,16 @@ app.get('/api/search-flights', async (req, res) => {
     const result = await conn.execute(plsql, binds);
     const rs = result.outBinds.cursor;
 
+    const meta = result.outBinds.cursor.metaData;
     const flights = [];
     let row;
     while ((row = await rs.getRow())) {
-      flights.push(row);
+      const flight = {};
+      row.forEach((val, idx) => {
+        flight[meta[idx].name] = val;
+      });
+      flights.push(flight);
     }
-    await rs.close();
 
     res.json(flights);
   } catch (err) {
