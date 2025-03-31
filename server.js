@@ -42,13 +42,65 @@ app.get('/api/airports', async (req, res) => {
       id,
       code,
       city,
-      label: `${city}(${code})`
+      label: `${city} (${code})`
     }));
 
     res.json(airports);
   } catch (err) {
     console.error('Query error:', err);
     res.status(500).json({ error: 'Failed to fetch airports' });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
+// Search flights
+app.get('/api/search-flights', async (req, res) => {
+  const { departureId, arrivalId, date } = req.query;
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+
+    const binds = {};
+    let plsql = '';
+    
+    if (departureId && arrivalId && date) {
+      plsql = `BEGIN AirlinePackage.SearchFlights(:departureId, :arrivalId, TO_TIMESTAMP(:date, 'YYYY-MM-DD'), :cursor); END;`;
+      binds.departureId = parseInt(departureId);
+      binds.arrivalId = parseInt(arrivalId);
+      binds.date = date;
+    } else if (departureId && arrivalId) {
+      plsql = `BEGIN AirlinePackage.SearchFlights(:departureId, :arrivalId, :cursor); END;`;
+      binds.departureId = parseInt(departureId);
+      binds.arrivalId = parseInt(arrivalId);
+    } else if (departureId && date) {
+      plsql = `BEGIN AirlinePackage.SearchFlights(:departureId, TO_TIMESTAMP(:date, 'YYYY-MM-DD'), :cursor); END;`;
+      binds.departureId = parseInt(departureId);
+      binds.date = date;
+    } else if (departureId) {
+      plsql = `BEGIN AirlinePackage.SearchFlights(:departureId, :cursor); END;`;
+      binds.departureId = parseInt(departureId);
+    } else {
+      return res.status(400).json({ error: 'At least departureId is required' });
+    }
+
+    binds.cursor = { type: oracledb.CURSOR, dir: oracledb.BIND_OUT };
+
+    const result = await conn.execute(plsql, binds);
+    const rs = result.outBinds.cursor;
+
+    const flights = [];
+    let row;
+    while ((row = await rs.getRow())) {
+      flights.push(row);
+    }
+    await rs.close();
+
+    res.json(flights);
+  } catch (err) {
+    console.error('Flight search error:', err);
+    res.status(500).json({ error: 'Failed to search flights' });
   } finally {
     if (conn) await conn.close();
   }
