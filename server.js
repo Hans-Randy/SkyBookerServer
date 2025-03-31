@@ -33,16 +33,14 @@ app.get('/api/airports', async (req, res) => {
     conn = await pool.getConnection();
 
     const result = await conn.execute(`
-      SELECT AirportID, AirportCode, City
-      FROM Airport
-      ORDER BY City
+      SELECT *
+      FROM AirportView
+      ORDER BY AirportDisplay
     `);
 
-    const airports = result.rows.map(([id, code, city]) => ({
+    const airports = result.rows.map(([id, label]) => ({
       id,
-      code,
-      city,
-      label: `${city} (${code})`
+      label
     }));
 
     res.json(airports);
