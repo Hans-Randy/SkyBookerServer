@@ -940,12 +940,6 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             JOIN Airport dep ON f.DepartureAirportID = dep.AirportID
             JOIN Airport arr ON f.ArrivalAirportID = arr.AirportID
             JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
-            WHERE EXISTS (
-                SELECT 1 
-                FROM Aircraft_Seat ast 
-                WHERE ast.AircraftID = f.AircraftID 
-                AND ast.IsAvailable = 'Y'
-            )
             ORDER BY f.DepartureDateTime;
     END;
 
@@ -974,12 +968,6 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
             JOIN Booking b ON f.FlightID = b.FlightID
             WHERE b.PassengerID = p_PassengerID
-            AND EXISTS (
-                SELECT 1 
-                FROM Aircraft_Seat ast 
-                WHERE ast.AircraftID = f.AircraftID 
-                AND ast.IsAvailable = 'Y'
-            )
             ORDER BY f.DepartureDateTime;
     END;
 
@@ -1007,12 +995,6 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             JOIN Airport arr ON f.ArrivalAirportID = arr.AirportID
             JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
             WHERE f.DepartureAirportID = p_DepartureAirportID
-            AND EXISTS (
-                SELECT 1 
-                FROM Aircraft_Seat ast 
-                WHERE ast.AircraftID = f.AircraftID 
-                AND ast.IsAvailable = 'Y'
-            )
             ORDER BY f.DepartureDateTime;
     END;
     
@@ -1041,12 +1023,6 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
             WHERE f.DepartureAirportID = p_DepartureAirportID
             AND f.ArrivalAirportID = p_ArrivalAirportID
-            AND EXISTS (
-                SELECT 1 
-                FROM Aircraft_Seat ast 
-                WHERE ast.AircraftID = f.AircraftID 
-                AND ast.IsAvailable = 'Y'
-            )
             ORDER BY f.DepartureDateTime;
     END;
     
@@ -1075,12 +1051,6 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
             WHERE f.DepartureAirportID = p_DepartureAirportID
             AND TRUNC(f.DepartureDateTime) = TRUNC(p_DepartureDateTime)
-            AND EXISTS (
-                SELECT 1 
-                FROM Aircraft_Seat ast 
-                WHERE ast.AircraftID = f.AircraftID 
-                AND ast.IsAvailable = 'Y'
-            )
             ORDER BY f.DepartureDateTime;
     END;
     
@@ -1110,12 +1080,6 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
             WHERE f.DepartureAirportID = p_DepartureAirportID
             AND f.ArrivalAirportID = p_ArrivalAirportID
             AND TRUNC(f.DepartureDateTime) = TRUNC(p_DepartureDateTime)
-            AND EXISTS (
-                SELECT 1 
-                FROM Aircraft_Seat ast 
-                WHERE ast.AircraftID = f.AircraftID 
-                AND ast.IsAvailable = 'Y'
-            )
             ORDER BY f.DepartureDateTime;
     END;
 
