@@ -181,6 +181,33 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
+// Get available seat count for a flight
+app.get('/api/flights/:flightId/available-seats', async (req, res) => {
+  const flightId = parseInt(req.params.flightId);
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+
+    const result = await conn.execute(
+      `SELECT COUNT(*) AS AvailableSeats
+       FROM Aircraft_Seat s
+       JOIN Flight f ON s.AircraftID = f.AircraftID
+       WHERE f.FlightID = :flightId AND s.IsAvailable = 'Y'`,
+      { flightId }
+    );
+
+    const availableSeats = result.rows[0][0];
+
+    res.status(200).json({ flightId, availableSeats });
+  } catch (err) {
+    console.error('Error fetching available seat count:', err);
+    res.status(500).json({ error: 'Failed to fetch available seats' });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
 // Example route
 app.get('/api/flights', async (req, res) => {
   let conn;
