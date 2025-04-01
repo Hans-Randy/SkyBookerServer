@@ -108,6 +108,79 @@ app.get('/api/search-flights', async (req, res) => {
   }
 });
 
+//Get all passengers
+app.get('/api/passengers', async (req, res) => {
+  let conn;
+  try {
+    conn = await pool.getConnection();
+
+    const result = await conn.execute(`
+      SELECT PassengerID, FullName, Email, PhoneNumer, PassPortNumber FROM Passenger ORDER BY FullName
+    `);
+
+    const passengers = result.rows.map(([id, name, email, phone, passport]) => ({
+      id, name, email, phone, passport
+    }));
+
+    res.json(passengers);
+  } catch (err) {
+    console.error('Error fetching passengers:', err);
+    res.status(500).json({ error: 'Failed to fetch passengers' });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
+// Create new passenger
+app.post('/api/passengers', async (req, res) => {
+  const { name, email, phone, passport } = req.body;
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.execute(`
+      BEGIN AirlinePackage.AddPassenger(:name, :email, :phone, :passport); END;
+    `, { name, email, phone, passport });
+    await conn.commit();
+    res.status(201).json({ message: 'Passenger added successfully' });
+  } catch (err) {
+    console.error('Error adding passenger:', err);
+    res.status(500).json({ error: 'Failed to add passenger' });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
+// Book a flight
+app.post('/api/bookings', async (req, res) => {
+  const { passengerId, flightId } = req.body;
+  let conn;
+  try {
+    conn = await pool.getConnection();
+
+    const seatResult = await conn.execute(
+      `BEGIN :seatId := AirlinePackage.GetNextAvailableSeat(:flightId); END;`,
+      {
+        seatId: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+        flightId,
+      }
+    );
+    const seatId = seatResult.outBinds.seatId;
+
+    await conn.execute(
+      `BEGIN AirlinePackage.AddBooking(:passengerId, :flightId, :seatId); END;`,
+      { passengerId, flightId, seatId }
+    );
+    await conn.commit();
+
+    res.status(200).json({ message: 'Booking successful', seatId });
+  } catch (err) {
+    console.error('Error booking flight:', err);
+    res.status(500).json({ error: 'Booking failed', details: err.message });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
 // Example route
 app.get('/api/flights', async (req, res) => {
   let conn;
