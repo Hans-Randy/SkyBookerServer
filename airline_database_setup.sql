@@ -807,7 +807,7 @@ CREATE OR REPLACE PACKAGE AirlinePackage IS
     
     -- Overloaded SearchFlights procedures that return REF CURSOR
     PROCEDURE SearchFlights(p_ResultCursor OUT FlightCursorType);
-    PROCEDURE SearchFlights(p_PassengerID IN NUMBER, p_ResultCursor OUT FlightCursorType);
+    PROCEDURE SearchFlightsByPassenger(p_PassengerID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_ArrivalAirportID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_DepartureDateTime IN TIMESTAMP, p_ResultCursor OUT FlightCursorType);
@@ -944,7 +944,7 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
     END;
 
     -- Search for flights by passenger only
-    PROCEDURE SearchFlights(p_PassengerID IN NUMBER, p_ResultCursor OUT FlightCursorType) IS
+    PROCEDURE SearchFlightsByPassenger(p_PassengerID IN NUMBER, p_ResultCursor OUT FlightCursorType) IS
     BEGIN
         OPEN p_ResultCursor FOR
             SELECT f.FlightID, 
