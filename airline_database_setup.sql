@@ -776,7 +776,7 @@ END;
 CREATE OR REPLACE PACKAGE AirlinePackage IS
     g_LastBookingID NUMBER := 0;    
 
-    -- Define a record type
+    -- Define a record type for regular flight searches
     TYPE FlightRecord IS RECORD (
         FlightID Flight.FlightID%TYPE,
         FlightNumber Flight.FlightNumber%TYPE,
@@ -795,8 +795,33 @@ CREATE OR REPLACE PACKAGE AirlinePackage IS
         AircraftModel Aircraft.AircraftModel%TYPE
     );
 
-    -- Define a strongly-typed REF CURSOR for flight results
+    -- Define a record type for passenger-specific flight searches
+    TYPE PassengerFlightRecord IS RECORD (
+        FlightID Flight.FlightID%TYPE,
+        FlightNumber Flight.FlightNumber%TYPE,
+        DepartureAirportID Flight.DepartureAirportID%TYPE,
+        DepartureAirport Airport.AirportName%TYPE, 
+        DepartureAirportCode Airport.AirportCode%TYPE, 
+        DepartureCity Airport.City%TYPE, 
+        ArrivalAirportID Flight.ArrivalAirportID%TYPE,
+        ArrivalAirport Airport.AirportName%TYPE,  
+        ArrivalAirportCode Airport.AirportCode%TYPE,   
+        ArrivalCity Airport.City%TYPE, 
+        DepartureDateTime Flight.DepartureDateTime%TYPE,
+        ArrivalDateTime Flight.ArrivalDateTime%TYPE,
+        Price Flight.Price%TYPE,
+        AircraftID Flight.AircraftID%TYPE,
+        AircraftModel Aircraft.AircraftModel%TYPE,
+        BookingID Booking.BookingID%TYPE,
+        BookingStatus Booking.Status%TYPE,
+        SeatNumber Aircraft_Seat.SeatNumber%TYPE,
+        SeatRow Aircraft_Seat.SeatRow%TYPE,
+        SeatColumn Aircraft_Seat.SeatColumn%TYPE
+    );
+
+    -- Define strongly-typed REF CURSORs for flight results
     TYPE FlightCursorType IS REF CURSOR RETURN FlightRecord;
+    TYPE PassengerFlightCursorType IS REF CURSOR RETURN PassengerFlightRecord;
     
     PROCEDURE AddPassenger(p_FullName IN VARCHAR2, p_Email IN VARCHAR2, p_PhoneNumber IN VARCHAR2, p_PassportNumber IN VARCHAR2);
     PROCEDURE UpdateFlightPrice(p_FlightID IN NUMBER, p_NewPrice IN NUMBER);
@@ -807,7 +832,7 @@ CREATE OR REPLACE PACKAGE AirlinePackage IS
     
     -- Overloaded SearchFlights procedures that return REF CURSOR
     PROCEDURE SearchFlights(p_ResultCursor OUT FlightCursorType);
-    PROCEDURE SearchFlightsByPassenger(p_PassengerID IN NUMBER, p_ResultCursor OUT FlightCursorType);
+    PROCEDURE SearchFlightsByPassenger(p_PassengerID IN NUMBER, p_ResultCursor OUT PassengerFlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_ArrivalAirportID IN NUMBER, p_ResultCursor OUT FlightCursorType);
     PROCEDURE SearchFlights(p_DepartureAirportID IN NUMBER, p_DepartureDateTime IN TIMESTAMP, p_ResultCursor OUT FlightCursorType);
@@ -944,7 +969,7 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
     END;
 
     -- Search for flights by passenger only
-    PROCEDURE SearchFlightsByPassenger(p_PassengerID IN NUMBER, p_ResultCursor OUT FlightCursorType) IS
+    PROCEDURE SearchFlightsByPassenger(p_PassengerID IN NUMBER, p_ResultCursor OUT PassengerFlightCursorType) IS
     BEGIN
         OPEN p_ResultCursor FOR
             SELECT f.FlightID, 
@@ -961,12 +986,18 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
                    f.ArrivalDateTime, 
                    f.Price,
                    f.AircraftID,
-                   ac.AircraftModel
+                   ac.AircraftModel,
+                   b.BookingID,
+                   b.Status AS BookingStatus,
+                   ast.SeatNumber,
+                   ast.SeatRow,
+                   ast.SeatColumn
             FROM Flight f
             JOIN Airport dep ON f.DepartureAirportID = dep.AirportID
             JOIN Airport arr ON f.ArrivalAirportID = arr.AirportID
             JOIN Aircraft ac ON f.AircraftID = ac.AircraftID
             JOIN Booking b ON f.FlightID = b.FlightID
+            LEFT JOIN Aircraft_Seat ast ON b.SeatID = ast.SeatID
             WHERE b.PassengerID = p_PassengerID
             ORDER BY f.DepartureDateTime;
     END;
