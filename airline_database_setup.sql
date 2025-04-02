@@ -886,16 +886,23 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
     END GetNextAvailableSeat;
 
     PROCEDURE AddBooking(p_PassengerID IN NUMBER, p_FlightID IN NUMBER, p_SeatID IN NUMBER DEFAULT NULL, p_Status IN VARCHAR2 DEFAULT 'Confirmed') IS
+    v_SeatID NUMBER;
     BEGIN
+        -- Get the next available seat for the flight
+        IF p_SeatID IS NULL THEN
+            v_SeatID := GetNextAvailableSeat(p_FlightID);
+        ELSE
+            v_SeatID := p_SeatID;
+        END IF;
         INSERT INTO Booking(BookingID, PassengerID, FlightID, SeatID, BookingDate, Status)
-        VALUES (BookingSeq.NEXTVAL, p_PassengerID, p_FlightID, p_SeatID, CURRENT_TIMESTAMP, p_Status);
+        VALUES (BookingSeq.NEXTVAL, p_PassengerID, p_FlightID, v_SeatID, CURRENT_TIMESTAMP, p_Status);
         g_LastBookingID := BookingSeq.CURRVAL;
         
         -- Update seat availability if a seat is assigned
-        IF p_SeatID IS NOT NULL THEN
+        IF v_SeatID IS NOT NULL THEN
             UPDATE Aircraft_Seat 
             SET IsAvailable = 'N'
-            WHERE SeatID = p_SeatID;
+            WHERE SeatID = v_SeatID;
         END IF;
     END;
 
@@ -909,20 +916,36 @@ CREATE OR REPLACE PACKAGE BODY AirlinePackage IS
         p_Price NUMBER,
         p_PassengerID IN NUMBER, 
         p_SeatID IN NUMBER DEFAULT NULL, 
-        p_Status IN VARCHAR2 DEFAULT 'Confirmed') IS
+        p_Status IN VARCHAR2 DEFAULT 'Confirmed'
+    ) IS
+    v_SeatID NUMBER;
+    v_FlightID NUMBER; -- Add this variable to store the newly created flight ID
     BEGIN
+        -- Insert the new flight first
         INSERT INTO Flight (FlightID, FlightNumber, DepartureAirportID, ArrivalAirportID, AircraftID, DepartureDateTime, ArrivalDateTime, Price)
-        VALUES (FlightSeq.NEXTVAL, p_FlightNumber, p_DepartureAirportID, p_ArrivalAirportID, p_AircraftID, p_DepartureDateTime, p_ArrivalDateTime, p_Price); 
+        VALUES (FlightSeq.NEXTVAL, p_FlightNumber, p_DepartureAirportID, p_ArrivalAirportID, p_AircraftID, p_DepartureDateTime, p_ArrivalDateTime, p_Price);
+        
+        -- Get the newly created flight ID
+        v_FlightID := FlightSeq.CURRVAL;
+        
+        -- Get the next available seat for the flight
+        IF p_SeatID IS NULL THEN
+            v_SeatID := GetNextAvailableSeat(v_FlightID); -- Use v_FlightID instead of p_FlightID
+        ELSE
+            v_SeatID := p_SeatID;
+        END IF;
 
+        -- Insert the booking with the new flight ID
         INSERT INTO Booking(BookingID, PassengerID, FlightID, SeatID, BookingDate, Status)
-        VALUES (BookingSeq.NEXTVAL, p_PassengerID, FlightSeq.CURRVAL, p_SeatID, CURRENT_TIMESTAMP, p_Status);
+        VALUES (BookingSeq.NEXTVAL, p_PassengerID, v_FlightID, v_SeatID, CURRENT_TIMESTAMP, p_Status);
+        
         g_LastBookingID := BookingSeq.CURRVAL;
         
         -- Update seat availability if a seat is assigned
-        IF p_SeatID IS NOT NULL THEN
+        IF v_SeatID IS NOT NULL THEN
             UPDATE Aircraft_Seat 
             SET IsAvailable = 'N'
-            WHERE SeatID = p_SeatID;
+            WHERE SeatID = v_SeatID;
         END IF;
 
         EXCEPTION
