@@ -108,6 +108,47 @@ app.get('/api/search-flights', async (req, res) => {
   }
 });
 
+// Search booked flights
+app.get('/api/booked-flights', async (req, res) => {
+  const { passengerId } = req.query;
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+
+    const binds = {};
+    let plsql = '';
+    
+    if (passengerId) {
+      plsql = `BEGIN AirlinePackage.SearchFlightsByPassenger(:passengerId, :cursor); END;`;
+      binds.passengerId = parseInt(passengerId);
+    }
+
+    binds.cursor = { type: oracledb.CURSOR, dir: oracledb.BIND_OUT };
+
+    const result = await conn.execute(plsql, binds);
+    const rs = result.outBinds.cursor;
+
+    const meta = result.outBinds.cursor.metaData;
+    const flights = [];
+    let row;
+    while ((row = await rs.getRow())) {
+      const flight = {};
+      row.forEach((val, idx) => {
+        flight[meta[idx].name] = val;
+      });
+      flights.push(flight);
+    }
+
+    res.json(flights);
+  } catch (err) {
+    console.error('Booked flight search error:', err);
+    res.status(500).json({ error: 'Failed to search booked flights' });
+  } finally {
+    if (conn) await conn.close();
+  }
+});
+
 //Get all passengers
 app.get('/api/passengers', async (req, res) => {
   let conn;
