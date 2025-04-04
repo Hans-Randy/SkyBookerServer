@@ -17,20 +17,6 @@ DROP SEQUENCE AircraftSeq;
 DROP SEQUENCE AircraftSeatSeq;
 DROP SEQUENCE AuditLogSeq;
 
--- Drop Procedures
-DROP PROCEDURE AddPassenger;
-DROP PROCEDURE UpdateFlightPrice;
-DROP PROCEDURE ListFlightsByAirport;
-DROP PROCEDURE GetAvailableSeats;
-DROP PROCEDURE AddFlight;
-DROP PROCEDURE UpdateFlight;
-
--- Drop Functions
-DROP FUNCTION GetPassengerCount;
-DROP FUNCTION GetFlightPrice;
-DROP FUNCTION GetOccupiedSeatsCount;
-DROP FUNCTION GetNextAvailableSeat;
-
 -- Drop Views
 DROP VIEW AircraftView;
 DROP VIEW CabinClasseView;
@@ -560,96 +546,6 @@ BEGIN
 END;
 /
 
--- Create Procedures
-CREATE OR REPLACE PROCEDURE AddPassenger(
-    p_FullName IN VARCHAR2,
-    p_Email IN VARCHAR2,
-    p_PhoneNumber IN VARCHAR2,
-	p_PassportNumber IN VARCHAR2
-) IS
-BEGIN
-    INSERT INTO Passenger(PassengerID, FullName, Email, PhoneNumer, PassPortNumber)
-    VALUES (PassengerSeq.NEXTVAL, p_FullName, p_Email, p_PhoneNumber, p_PassportNumber);
-END;
-/
-
-CREATE OR REPLACE PROCEDURE UpdateFlightPrice(
-    p_FlightID IN NUMBER,
-    p_NewPrice IN NUMBER
-) IS
-BEGIN
-    UPDATE Flight SET Price = p_NewPrice WHERE FlightID = p_FlightID;
-END;
-/
-
-CREATE OR REPLACE FUNCTION GetNextAvailableSeat (
-    p_FlightID NUMBER
-) RETURN NUMBER IS
-    v_SeatID NUMBER;
-BEGIN
-    -- Find the first available seat for the given flight
-    SELECT ast.SeatID INTO v_SeatID
-    FROM Aircraft_Seat ast
-    JOIN Aircraft a ON ast.AircraftID = a.AircraftID
-    JOIN Flight f ON f.AircraftID = a.AircraftID
-    WHERE f.FlightID = p_FlightID
-      AND ast.IsAvailable = 'Y'
-    FETCH FIRST 1 ROWS ONLY;
-
-    -- Return the available SeatID
-    RETURN v_SeatID;
-
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        RAISE_APPLICATION_ERROR(-20001, 'No available seats for this flight.');
-    WHEN OTHERS THEN
-        RAISE;
-END GetNextAvailableSeat;
-/
-
-CREATE OR REPLACE PROCEDURE ListFlightsByAirport(
-    p_AirportID IN NUMBER,
-    p_FlightCursor OUT SYS_REFCURSOR
-) IS
-BEGIN
-    OPEN p_FlightCursor FOR
-        SELECT FlightNumber, DepartureDateTime, ArrivalDateTime, Price
-        FROM Flight
-        WHERE DepartureAirportID = p_AirportID;
-END;
-/
-
--- Create Functions
-CREATE OR REPLACE FUNCTION GetPassengerCount RETURN NUMBER IS
-    v_Count NUMBER;
-BEGIN
-    SELECT COUNT(*) INTO v_Count FROM Passenger;
-    RETURN v_Count;
-END;
-/
-
-CREATE OR REPLACE FUNCTION GetFlightPrice(p_FlightID IN NUMBER) RETURN NUMBER IS
-    v_Price NUMBER;
-BEGIN
-    SELECT Price INTO v_Price FROM Flight WHERE FlightID = p_FlightID;
-    RETURN v_Price;
-END;
-/
-
-CREATE OR REPLACE FUNCTION GetOccupiedSeatsCount(p_FlightID IN NUMBER) RETURN NUMBER IS
-    v_Count NUMBER;
-BEGIN
-    SELECT COUNT(*)
-    INTO v_Count
-    FROM Aircraft_Seat s
-    JOIN Flight f ON s.AircraftID = f.AircraftID
-    WHERE f.FlightID = p_FlightID
-    AND s.IsAvailable = 'N';
-    
-    RETURN v_Count;
-END;
-/
-
 CREATE OR REPLACE VIEW AircraftView AS 
 SELECT AircraftID, AircraftModel
 FROM Aircraft
@@ -674,103 +570,11 @@ SELECT
 FROM AuditLog
 ORDER BY ModifiedAt DESC;
 
-CREATE OR REPLACE PROCEDURE GetAvailableSeats (
-    p_FlightID NUMBER, p_Cursor OUT SYS_REFCURSOR
-) IS
-BEGIN
-    -- Return available seats for the selected flight
-    OPEN p_Cursor FOR
-    SELECT ast.SeatID, ast.SeatNumber, ast.SeatRow, ast.SeatColumn
-    FROM Aircraft_Seat ast
-    JOIN Aircraft a ON ast.AircraftID = a.AircraftID
-    JOIN Flight f ON f.AircraftID = a.AircraftID
-    WHERE f.FlightID = p_FlightID
-      AND ast.IsAvailable = 'Y'
-    ORDER BY ast.SeatRow, ast.SeatColumn;
-END;
-/
-
 CREATE OR REPLACE VIEW AirportView AS
 -- Return all airports for dropdown selection
 SELECT AirportID, AirportName || ' (' || AirportCode || ')' AS AirportDisplay
 FROM Airport
 ORDER BY AirportName;
-
-CREATE OR REPLACE PROCEDURE AddFlight (
-    p_FlightNumber VARCHAR2,
-    p_DepartureAirportID NUMBER,
-    p_ArrivalAirportID NUMBER,
-    p_AircraftID NUMBER,
-    p_DepartureDateTime TIMESTAMP,
-    p_ArrivalDateTime TIMESTAMP,
-    p_Price NUMBER
-) AS
-BEGIN
-    INSERT INTO Flight (FlightID, FlightNumber, DepartureAirportID, ArrivalAirportID, AircraftID, DepartureDateTime, ArrivalDateTime, Price)
-    VALUES (FlightSeq.NEXTVAL, p_FlightNumber, p_DepartureAirportID, p_ArrivalAirportID, p_AircraftID, p_DepartureDateTime, p_ArrivalDateTime, p_Price); 
-    EXCEPTION
-        WHEN OTHERS THEN
-            ROLLBACK;
-            RAISE;
-END;
-/
-
-CREATE OR REPLACE PROCEDURE UpdateFlight (
-    p_FlightID NUMBER,
-    p_FlightNumber VARCHAR2,
-    p_DepartureAirportID NUMBER,
-    p_ArrivalAirportID NUMBER,
-    p_DepartureDateTime TIMESTAMP,
-    p_ArrivalDateTime TIMESTAMP,
-    p_Price NUMBER
-) AS
-BEGIN
-    UPDATE Flight
-    SET FlightNumber = p_FlightNumber,
-        DepartureAirportID = p_DepartureAirportID,
-        ArrivalAirportID = p_ArrivalAirportID,
-        DepartureDateTime = p_DepartureDateTime,
-        ArrivalDateTime = p_ArrivalDateTime,
-        Price = p_Price
-    WHERE FlightID = p_FlightID;
-    EXCEPTION
-        WHEN OTHERS THEN
-            ROLLBACK;
-            RAISE;
-END;
-/
-
-CREATE OR REPLACE PROCEDURE UpdateBooking (
-    p_BookingID NUMBER,
-    p_NewSeatID NUMBER,
-    p_Status VARCHAR2
-) AS
-    v_OldSeatID NUMBER;
-BEGIN
-    -- Get the current seat assigned
-    SELECT SeatID INTO v_OldSeatID
-    FROM Booking
-    WHERE BookingID = p_BookingID;
-
-    -- Free the old seat
-    UPDATE Aircraft_Seat SET IsAvailable = 'Y' WHERE SeatID = v_OldSeatID;
-
-    -- Assign the new seat and update status
-    UPDATE Booking
-    SET SeatID = p_NewSeatID,
-        Status = p_Status
-    WHERE BookingID = p_BookingID;
-
-    -- Mark the new seat as unavailable
-    UPDATE Aircraft_Seat SET IsAvailable = 'N' WHERE SeatID = p_NewSeatID;
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Booking not found.');
-    WHEN OTHERS THEN
-        ROLLBACK;
-        RAISE;
-END;
-/
 
 -- Create Package for Procedures and Functions
 CREATE OR REPLACE PACKAGE AirlinePackage IS
